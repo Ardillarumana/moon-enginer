@@ -1,0 +1,64 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import streamlit as st
+
+# Material properties
+materials = {
+    "Concreto": {"k": 1.7, "rho": 2400, "cp": 880, "Tm": 1800},
+    "Cerámica (alúmina)": {"k": 30, "rho": 3900, "cp": 880, "Tm": 2072},
+    "Hormigón reforzado": {"k": 2.5, "rho": 2800, "cp": 900, "Tm": 1600}
+}
+
+# Plasma gas temperatures
+plasma_gases = {
+    "Argón (Ar)": 12000,
+    "Nitrógeno (N₂)": 14000,
+    "Oxígeno (O₂)": 13000,
+    "Hidrógeno (H₂)": 15000,
+    "Aire": 10000
+}
+
+def compute_plasma_cut(material, gas, depth_cm, width_mm, time_s):
+    props = materials[material]
+    depth_m = depth_cm / 100
+    width_m = width_mm / 1000
+    length_m = 0.01  # fixed length
+    volume = width_m * depth_m * length_m
+    mass = volume * props["rho"]
+    energy = mass * props["cp"] * (props["Tm"] - 25)
+    power_kw = energy / time_s / 1000
+
+    return {
+        "power_kw": power_kw,
+        "T_plasma": plasma_gases[gas]
+    }
+
+def plot_temperature_curve(gas):
+    alpha = 0.6
+    time_arr = np.linspace(0.1, 10, 100)
+    T_max = plasma_gases[gas]
+    T_curve = T_max * (1 - np.exp(-alpha * time_arr))
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.plot(time_arr, T_curve, label=f"{gas}", color='crimson')
+    ax.set_title("Temperatura del Plasma vs Tiempo")
+    ax.set_xlabel("Tiempo (s)")
+    ax.set_ylabel("Temperatura (K)")
+    ax.grid(True)
+    ax.legend()
+    st.pyplot(fig)
+
+# Streamlit interface
+st.title("Simulador de Corte por Plasma en Materiales Refractarios")
+
+material = st.selectbox("Selecciona el material:", list(materials.keys()))
+gas = st.selectbox("Selecciona el gas plasmágeno:", list(plasma_gases.keys()))
+depth_cm = st.slider("Espesor del material (cm):", min_value=1.0, max_value=100.0, value=20.0, step=1.0)
+width_mm = st.slider("Ancho del corte (mm):", min_value=0.1, max_value=10.0, value=1.0, step=0.1)
+time_s = st.slider("Tiempo deseado de corte (s):", min_value=1, max_value=60, value=10, step=1)
+
+if st.button("Calcular"):
+    result = compute_plasma_cut(material, gas, depth_cm, width_mm, time_s)
+    st.success(f"Potencia necesaria: {result['power_kw']:.2f} kW")
+    st.info(f"Temperatura estimada del plasma: {result['T_plasma']} K")
+    plot_temperature_curve(gas)
